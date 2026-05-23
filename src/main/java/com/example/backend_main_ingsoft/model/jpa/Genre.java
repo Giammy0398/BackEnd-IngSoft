@@ -1,0 +1,41 @@
+package com.example.backend_main_ingsoft.model.jpa;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.NaturalId;
+
+import java.io.Serial;
+import java.io.Serializable;
+
+/**
+ * Entity representing a genre of content (e.g., Action, Comedy).
+ */
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Entity
+public class Genre implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @JsonValue
+    @NaturalId
+    @Column(unique = true, nullable = false)
+    @EqualsAndHashCode.Include
+    private String name;
+
+    @JsonCreator
+    public Genre(String name) {
+        this.name = name.toUpperCase();
+    }
+}

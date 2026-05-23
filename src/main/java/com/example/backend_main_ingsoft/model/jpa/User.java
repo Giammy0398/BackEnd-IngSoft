@@ -15,6 +15,7 @@ import java.util.List;
  * Implements UserDetails for Spring Security integration.
  */
 
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Inheritance(strategy = InheritanceType.JOINED)
 @EqualsAndHashCode(exclude = {"password", "s3ImageKey"})

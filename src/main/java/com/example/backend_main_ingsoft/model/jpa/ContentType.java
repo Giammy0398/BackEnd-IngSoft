@@ -1,0 +1,27 @@
+package com.example.backend_main_ingsoft.model.jpa;
+
+import com.fasterxml.jackson.annotation.JsonValue;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.io.Serial;
+import java.io.Serializable;
+
+/**
+ * Entity representing the type of content (e.g., Movie, TV Show).
+ */
+@NoArgsConstructor
+@Getter
+@Entity
+public class ContentType implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    @JsonValue
+    @Id
+    private String name;
+
+    public ContentType(String name) {
+        this.name = name.toUpperCase();
+    }
+}
