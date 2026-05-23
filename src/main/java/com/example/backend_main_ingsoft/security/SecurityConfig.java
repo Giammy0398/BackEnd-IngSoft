@@ -1,0 +1,96 @@
+package com.example.backend_main_ingsoft.security;
+
+import com.example.backend_main_ingsoft.model.jpa.Role;
+import lombok.AllArgsConstructor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.servlet.HandlerExceptionResolver;
+
+import java.util.List;
+
+/**
+ Security configuration class for the application.
+ Configures CORS, CSRF, session management, role hierarchy, and JWT filter.
+ */
+@Configuration
+@EnableWebSecurity
+@AllArgsConstructor
+public class SecurityConfig {
+    private final JwtFilter jwtFilter;
+    private final HandlerExceptionResolver handlerExceptionResolver;
+
+    /**
+     * Defines the role hierarchy for the application.
+     * Higher roles inherit the permissions of lower roles.
+     */
+    @Bean
+    protected static RoleHierarchy roleHierarchy() {
+        return RoleHierarchyImpl.fromHierarchy(
+                """
+                            ROLE_ADMIN > ROLE_MEMBER
+                        """
+        );
+    }
+
+    /**
+     * Configures CORS settings for the application.
+     * Allows requests from specified origins with defined methods and headers.
+     */
+    @Bean
+    protected CorsConfigurationSource corsConfigurationSource(Environment environment) {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        configuration.setAllowedOrigins(List.of("http://localhost:8081"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration(environment.getProperty("api.basic-path") + "/**", configuration);
+
+        return source;
+    }
+
+    /**
+     * Configures the security filter chain for the application.
+     * Sets up CSRF, CORS, authorization rules, session management, exception handling, and JWT filter.
+     */
+    @Bean
+    protected SecurityFilterChain securityFilterChain(HttpSecurity http, Environment environment) throws Exception {
+        http
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource(environment)))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(environment.getProperty("api.paths.auth") + "/**").permitAll()
+                        .requestMatchers(environment.getProperty("api.paths.watchlist") + "/**").permitAll()
+                        .requestMatchers(environment.getProperty("api.paths.user") + "/**").permitAll()
+                        .requestMatchers(environment.getProperty("api.paths.friends") + "/**").hasRole(Role.MEMBER.name())
+                        .requestMatchers(environment.getProperty("api.paths.content") + "/**").permitAll()
+                        .requestMatchers(environment.getProperty("api.paths.search") + "/**").permitAll()
+                        .requestMatchers(environment.getProperty("api.paths.chat") + "/**").hasRole(Role.MEMBER.name())
+                        // Allow STOMP/WebSocket handshake
+                        .requestMatchers("/ws/**").permitAll()
+                        .anyRequest().denyAll()
+                )
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) -> handlerExceptionResolver.resolveException(request, response, null, authException))
+                        .accessDeniedHandler((request, response, accessDeniedException) -> handlerExceptionResolver.resolveException(request, response, null, accessDeniedException))
+                )
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+}
